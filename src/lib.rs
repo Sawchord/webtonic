@@ -1,4 +1,4 @@
-//#![no_std]
+mod request;
 
 use core::fmt;
 use core::future::Future;
@@ -28,7 +28,9 @@ impl GrpcService<BoxBody> for WebTonic {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WebTonicError {}
+pub enum WebTonicError {
+    InvalidUrl,
+}
 impl Error for WebTonicError {}
 impl fmt::Display for WebTonicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
