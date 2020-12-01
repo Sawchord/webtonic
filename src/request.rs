@@ -1,11 +1,9 @@
-use http::request::Request;
-use http::uri::Uri;
+use http::{request::Request, uri::Uri};
 use http_body::Body;
 use js_sys::Uint8Array;
 use tonic::body::BoxBody;
 use wasm_bindgen::JsValue;
-use web_sys::console;
-use web_sys::{Headers as JsHeaders, Request as JsRequest, RequestInit};
+use web_sys::{console, Headers as JsHeaders, Request as JsRequest, RequestInit};
 
 use crate::WebTonicError;
 
