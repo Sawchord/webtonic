@@ -29,7 +29,7 @@ impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // How do we implement this?
-        todo!()
+        todo!("poll ready unimplemented")
     }
 
     fn call(&mut self, request: Request<BoxBody>) -> Self::Future {
@@ -51,6 +51,7 @@ impl fmt::Display for WebTonicError {
 
 pub enum WebTonicFuture<'a> {
     Request(BoxFuture<'a, Result<JsRequest, WebTonicError>>),
+    Fetch(JsFuture),
 }
 impl<'a> Future for WebTonicFuture<'a> {
     type Output = Result<
@@ -59,15 +60,22 @@ impl<'a> Future for WebTonicFuture<'a> {
     >;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.get_mut() {
+        let inner = self.get_mut();
+        match inner {
             WebTonicFuture::Request(future) => match future.poll_unpin(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(request) => match request {
                     Err(err) => Poll::Ready(Err(err)),
-                    // TODO: Do the actual fetch
-                    Ok(_req) => Poll::Pending,
+                    Ok(request) => {
+                        // Do the fetch
+                        let fetch = JsFuture::from(window().unwrap().fetch_with_request(&request));
+                        *inner = WebTonicFuture::Fetch(fetch);
+                        Poll::Pending
+                    }
                 },
             },
+            #[allow(unreachable_patterns)]
+            _ => todo!(),
         }
     }
 }
