@@ -8,7 +8,7 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use futures::future::{BoxFuture, FutureExt};
+use futures::future::{FutureExt, LocalBoxFuture};
 use http::{request::Request, response::Response, uri::Uri};
 use std::error::Error;
 use tonic::{body::BoxBody, client::GrpcService};
@@ -37,7 +37,7 @@ impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
 
     fn call(&mut self, request: Request<BoxBody>) -> Self::Future {
         let uri_clone = self.uri.clone();
-        WebTonicFuture::Request((async { req_to_js_req(uri_clone, request).await }).boxed())
+        WebTonicFuture::Request((async { req_to_js_req(uri_clone, request).await }).boxed_local())
     }
 }
 
@@ -56,8 +56,9 @@ impl fmt::Display for WebTonicError {
 
 // TODO: Add inner to hide the internals
 pub enum WebTonicFuture<'a> {
-    Request(BoxFuture<'a, Result<JsRequest, WebTonicError>>),
+    Request(LocalBoxFuture<'a, Result<JsRequest, WebTonicError>>),
     Fetch(JsFuture),
+    Response(LocalBoxFuture<'a, Result<Response<BoxBody>, WebTonicError>>),
 }
 impl<'a> Future for WebTonicFuture<'a> {
     type Output = Result<
@@ -83,10 +84,14 @@ impl<'a> Future for WebTonicFuture<'a> {
             WebTonicFuture::Fetch(future) => match future.poll_unpin(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(response) => {
-                    // Parse response
-                    let response = js_res_to_res(response);
-                    Poll::Ready(response)
+                    let fut = js_res_to_res(response);
+                    *inner = WebTonicFuture::Response((async { fut.await }).boxed_local());
+                    Poll::Pending
                 }
+            },
+            WebTonicFuture::Response(future) => match future.poll_unpin(cx) {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(response) => Poll::Ready(response),
             },
             #[allow(unreachable_patterns)]
             _ => todo!(),
