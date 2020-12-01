@@ -1,4 +1,5 @@
 mod request;
+mod response;
 
 use core::{
     fmt,
@@ -14,13 +15,15 @@ use tonic::{body::BoxBody, client::GrpcService};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{window, Request as JsRequest};
 
-use crate::request::req_to_js_req;
+use crate::{request::req_to_js_req, response::js_res_to_res};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebTonic<'a> {
     uri: Uri,
     _dat: PhantomData<&'a ()>,
 }
+
+// TODO: Constructors
 
 impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
     type ResponseBody = BoxBody;
@@ -41,6 +44,8 @@ impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WebTonicError {
     InvalidUrl,
+    FetchError(String),
+    HttpError(u16),
 }
 impl Error for WebTonicError {}
 impl fmt::Display for WebTonicError {
@@ -49,6 +54,7 @@ impl fmt::Display for WebTonicError {
     }
 }
 
+// TODO: Add inner to hide the internals
 pub enum WebTonicFuture<'a> {
     Request(BoxFuture<'a, Result<JsRequest, WebTonicError>>),
     Fetch(JsFuture),
@@ -73,6 +79,14 @@ impl<'a> Future for WebTonicFuture<'a> {
                         Poll::Pending
                     }
                 },
+            },
+            WebTonicFuture::Fetch(future) => match future.poll_unpin(cx) {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(response) => {
+                    // Parse response
+                    let response = js_res_to_res(response);
+                    Poll::Ready(response)
+                }
             },
             #[allow(unreachable_patterns)]
             _ => todo!(),

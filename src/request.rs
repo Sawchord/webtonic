@@ -7,7 +7,6 @@ use web_sys::{console, Headers as JsHeaders, Request as JsRequest, RequestInit};
 
 use crate::WebTonicError;
 
-#[allow(dead_code)]
 pub(crate) async fn req_to_js_req(
     uri: Uri,
     mut req: Request<BoxBody>,
