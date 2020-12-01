@@ -29,6 +29,7 @@ features = [
     "Window",
     "Request",
     "RequestInit",
+    "RequestMode",
     "Response",
     "Headers",
     "Blob",

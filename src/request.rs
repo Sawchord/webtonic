@@ -3,7 +3,7 @@ use http_body::Body;
 use js_sys::Uint8Array;
 use tonic::body::BoxBody;
 use wasm_bindgen::JsValue;
-use web_sys::{console, Headers as JsHeaders, Request as JsRequest, RequestInit};
+use web_sys::{console, Headers as JsHeaders, Request as JsRequest, RequestInit, RequestMode};
 
 use crate::WebTonicError;
 
@@ -15,17 +15,16 @@ pub(crate) async fn req_to_js_req(
     let mut body_vec: Vec<u8> = vec![];
     let body_bytes = req.body_mut();
     while let Some(bytes) = body_bytes.data().await {
-        body_vec.copy_from_slice(&bytes.unwrap());
+        body_vec.extend_from_slice(&bytes.unwrap());
     }
     let js_body = Uint8Array::from(&body_vec[..]);
 
     // Parse Uri
     let mut full_uri = "".to_string();
     full_uri.push_str(&format!("{}", uri));
-    console::log_1(&JsValue::from_str(&format!("{}", uri)));
-
+    // TODO: Remove double slash in resource
     full_uri.push_str(&format!("{}", req.uri()));
-    console::log_1(&JsValue::from_str(&format!("{}", req.uri())));
+    console::log_1(&JsValue::from_str(&format!("{}", full_uri)));
 
     // Method
     let method = req.method().as_str().to_string();
@@ -58,6 +57,7 @@ pub(crate) async fn req_to_js_req(
         &full_uri,
         &RequestInit::new()
             .method(&method)
+            .mode(RequestMode::NoCors)
             .headers(&JsValue::from(js_headers))
             .body(Some(&js_body)),
     )

@@ -23,7 +23,14 @@ pub struct WebTonic<'a> {
     _dat: PhantomData<&'a ()>,
 }
 
-// TODO: Constructors
+impl WebTonic<'_> {
+    pub fn from_static(s: &'static str) -> Self {
+        Self {
+            uri: Uri::from_static(s),
+            _dat: PhantomData,
+        }
+    }
+}
 
 impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
     type ResponseBody = BoxBody;
@@ -31,8 +38,8 @@ impl<'a> GrpcService<BoxBody> for WebTonic<'a> {
     type Future = WebTonicFuture<'a>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        // How do we implement this?
-        todo!("poll ready unimplemented")
+        // We return an ok, because we are essentially always ready to poll
+        Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, request: Request<BoxBody>) -> Self::Future {
