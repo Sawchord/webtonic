@@ -14,6 +14,14 @@ pub(crate) async fn req_to_js_req(
     uri: Uri,
     mut req: Request<BoxBody>,
 ) -> Result<JsRequest, WebTonicError> {
+    // Body
+    let mut body_vec: Vec<u8> = vec![];
+    let body_bytes = req.body_mut();
+    while let Some(bytes) = body_bytes.data().await {
+        body_vec.copy_from_slice(&bytes.unwrap());
+    }
+    let js_body = Uint8Array::from(&body_vec[..]);
+
     // Parse Uri
     let mut full_uri = "".to_string();
     full_uri.push_str(&format!("{}", uri));
@@ -40,14 +48,6 @@ pub(crate) async fn req_to_js_req(
 
     // Version??
     // How do we guarantee http 2.0?
-
-    // Body
-    let mut body_vec: Vec<u8> = vec![];
-    let body_bytes = req.body_mut();
-    while let Some(bytes) = body_bytes.data().await {
-        body_vec.copy_from_slice(&bytes.unwrap());
-    }
-    let js_body = Uint8Array::from(&body_vec[..]);
 
     // What do we do with these settings?
     // They should be set to sensible values here
