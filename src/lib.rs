@@ -1,18 +1,18 @@
 mod request;
 
-use core::fmt;
-use core::future::Future;
-use core::marker::PhantomData;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::{
+    fmt,
+    future::Future,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 use futures::future::{BoxFuture, FutureExt};
-use http::request::Request;
-use http::response::Response;
-use http::uri::Uri;
+use http::{request::Request, response::Response, uri::Uri};
 use std::error::Error;
-use tonic::body::BoxBody;
-use tonic::client::GrpcService;
-use web_sys::Request as JsRequest;
+use tonic::{body::BoxBody, client::GrpcService};
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{window, Request as JsRequest};
 
 use crate::request::req_to_js_req;
 
