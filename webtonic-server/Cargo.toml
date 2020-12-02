@@ -5,4 +5,13 @@ authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+futures = { version = "0.3.6", default-features = false, features = ["alloc"] }
 webtonic-proto = { path = "../webtonic-proto" }
+warp = { version = "0.2.5", default-features = false, features = ["websocket"] }
+bytes = { version = "0.5.3", default-features = false }
+tower-service = { version = "0.3.0", default-features = false }
+tonic = { version = "0.3.1", default-features = false }
+http = { version = "0.2.1", default-features = false }
+
+# TODO: Add tls support
+# TODO: Add compression?
