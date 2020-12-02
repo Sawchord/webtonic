@@ -8,13 +8,14 @@ use webtonic_proto::WebTonicError;
 
 use crate::console_log;
 
+#[derive(Debug, Clone)]
 pub(crate) struct WebSocketConnector {
     ws: WebSocket,
 }
 
 impl WebSocketConnector {
-    pub(crate) async fn connect(uri: String) -> Result<Self, WebTonicError> {
-        let ws = WebSocket::new(&uri).map_err(|_| WebTonicError::InvalidUrl)?;
+    pub(crate) async fn connect(uri: &str) -> Result<Self, WebTonicError> {
+        let ws = WebSocket::new(uri).map_err(|_| WebTonicError::InvalidUrl)?;
         unset_message_handler(&ws);
 
         // NOTE: We can only process ArrayBuffers at the moment
@@ -119,7 +120,7 @@ mod tests {
     // TODO: Make this compliant with server once it is available
     #[wasm_bindgen_test]
     async fn websocket() {
-        let ws = WebSocketConnector::connect("ws://localhost:1337".to_string())
+        let ws = WebSocketConnector::connect("ws://localhost:1337")
             .await
             .unwrap();
         let msg = ws.send(&Bytes::from(b"WebTonic\n".to_vec())).await.unwrap();
