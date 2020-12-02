@@ -2,8 +2,12 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use bytes::Buf;
+use bytes::{Buf, Bytes};
 use core::default::Default;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 use http::{header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest};
 use http_body::Body as HttpBody;
 use prost;
@@ -87,6 +91,36 @@ pub async fn http_request_to_call(mut request: HttpRequest<BoxBody>) -> Call {
     }
 }
 
+pub fn call_to_http_request(call: Call) -> HttpRequest<BoxBody> {
+    use http::header::{HeaderName, HeaderValue};
+    use http::request::Builder;
+
+    let request = match call.request {
+        Some(request) => request,
+        None => todo!(),
+    };
+
+    let mut builder = Builder::new()
+        .method(method_to_http_method(
+            Method::from_i32(request.method).unwrap(),
+        ))
+        .uri(request.uri);
+
+    for header in request.headers {
+        builder = builder.header(
+            HeaderName::from_bytes(header.name.as_bytes()).unwrap(),
+            HeaderValue::from_str(header.value.as_str()).unwrap(),
+        )
+    }
+
+    builder
+        .body(match call.body {
+            Some(body) => BoxBody::new(body),
+            None => BoxBody::new(Body { body: vec![] }),
+        })
+        .unwrap()
+}
+
 fn http_headers_to_headers(headers: &HeaderMap) -> Vec<Header> {
     headers
         .iter()
@@ -106,7 +140,41 @@ fn http_method_to_method(method: &HttpMethod) -> Method {
         &HttpMethod::DELETE => Method::Delete,
         &HttpMethod::CONNECT => Method::Connect,
         &HttpMethod::OPTIONS => Method::Options,
+        &HttpMethod::TRACE => Method::Trace,
         &HttpMethod::PATCH => Method::Patch,
         _ => panic!(),
+    }
+}
+
+fn method_to_http_method(method: Method) -> HttpMethod {
+    match method {
+        Method::Get => HttpMethod::GET,
+        Method::Head => HttpMethod::HEAD,
+        Method::Post => HttpMethod::POST,
+        Method::Put => HttpMethod::PUT,
+        Method::Delete => HttpMethod::DELETE,
+        Method::Connect => HttpMethod::CONNECT,
+        Method::Options => HttpMethod::OPTIONS,
+        Method::Trace => HttpMethod::TRACE,
+        Method::Patch => HttpMethod::PATCH,
+    }
+}
+
+impl HttpBody for Body {
+    type Data = Bytes;
+    type Error = tonic::Status;
+
+    fn poll_data(
+        self: Pin<&mut Self>,
+        _cx: &mut Context,
+    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+        Poll::Ready(Some(Ok(Bytes::from(self.body.clone()))))
+    }
+
+    fn poll_trailers(
+        self: Pin<&mut Self>,
+        _cx: &mut Context,
+    ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
+        todo!("trailer polling is unimplemented")
     }
 }
