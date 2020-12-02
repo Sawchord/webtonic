@@ -1,11 +1,11 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use core::marker::{Send, Sync};
 use futures::StreamExt;
-use http::request::Request;
+use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc::unbounded_channel, Mutex};
 use tonic::body::BoxBody;
 use tower_service::Service;
 use warp::{
@@ -16,7 +16,6 @@ use webtonic_proto::Call;
 
 // use core::future::Future;
 // use core::pin::Pin;
-// use http::response::Response;
 // use std::error::Error;
 // type FullService = Box<
 //     dyn Service<
@@ -39,13 +38,14 @@ impl<B> Clone for Server<B> {
     }
 }
 
-impl<B: Service<Request<BoxBody>> + Sync + Send + 'static> Server<B> {
+impl<B> Server<B> {
     pub fn build(service: B) -> Self {
         Self(Arc::new(Mutex::new(service)))
     }
 
     pub async fn serve<A: Into<SocketAddr>>(self, addr: A) -> Result<(), ()>
     where
+        B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Sync + Send + 'static,
         <B as Service<Request<BoxBody>>>::Future: Send,
     {
         let server_clone = warp::any().map(move || self.clone());
@@ -61,12 +61,16 @@ impl<B: Service<Request<BoxBody>> + Sync + Send + 'static> Server<B> {
         Ok(())
     }
 }
-//async fn handle_connection(
-async fn handle_connection<B: Service<Request<BoxBody>> + Sync + Send + 'static>(
-    ws: WebSocket,
-    server: Server<B>,
-) {
+
+// TODO: Proper error handling
+async fn handle_connection<B>(ws: WebSocket, server: Server<B>)
+where
+    B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Sync + Send + 'static,
+{
     let (ws_tx, mut ws_rx) = ws.split();
+    let (tx, rx) = unbounded_channel();
+    // Create outbound task
+    tokio::task::spawn(rx.forward(ws_tx));
 
     while let Some(msg) = ws_rx.next().await {
         // Check that we got a message and it is binary
@@ -89,14 +93,18 @@ async fn handle_connection<B: Service<Request<BoxBody>> + Sync + Send + 'static>
         let call = webtonic_proto::call_to_http_request(call).unwrap();
 
         // Call the inner service
-        let response = match server.0.lock().await.call(call).await {
+        let mut response = match server.0.lock().await.call(call).await {
             Ok(response) => response,
             Err(_) => todo!(),
         };
 
         // Turn reply first into protobuf, then into message
-        //let reply = webtonic_proto::http_response_to_reply(&mut response).await;
+        let reply = webtonic_proto::http_response_to_reply(&mut response).await;
+        let mut msg = BytesMut::new();
+        reply.encode(&mut msg).unwrap();
+        let msg = Message::binary(msg.as_ref());
 
         // Return the message
+        tx.send(Ok(msg)).unwrap();
     }
 }
