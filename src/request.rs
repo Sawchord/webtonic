@@ -3,7 +3,9 @@ use http_body::Body;
 use js_sys::Uint8Array;
 use tonic::body::BoxBody;
 use wasm_bindgen::JsValue;
-use web_sys::{console, Headers as JsHeaders, Request as JsRequest, RequestInit, RequestMode};
+use web_sys::{
+    console, Headers as JsHeaders, Request as JsRequest, RequestCache, RequestInit, RequestMode,
+};
 
 use crate::WebTonicError;
 
@@ -58,6 +60,7 @@ pub(crate) async fn req_to_js_req(
         &RequestInit::new()
             .method(&method)
             .mode(RequestMode::NoCors)
+            .cache(RequestCache::NoCache)
             .headers(&JsValue::from(js_headers))
             .body(Some(&js_body)),
     )

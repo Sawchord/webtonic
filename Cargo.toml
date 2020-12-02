@@ -30,6 +30,7 @@ features = [
     "Request",
     "RequestInit",
     "RequestMode",
+    "RequestCache",
     "Response",
     "Headers",
     "Blob",

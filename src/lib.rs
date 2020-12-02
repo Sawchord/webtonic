@@ -12,8 +12,9 @@ use futures::future::{FutureExt, LocalBoxFuture};
 use http::{request::Request, response::Response, uri::Uri};
 use std::error::Error;
 use tonic::{body::BoxBody, client::GrpcService};
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Request as JsRequest};
+use web_sys::{console, window, Request as JsRequest};
 
 use crate::{request::req_to_js_req, response::js_res_to_res};
 
@@ -74,6 +75,7 @@ impl<'a> Future for WebTonicFuture<'a> {
     >;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        console::log_1(&JsValue::from_str(&"polling"));
         let inner = self.get_mut();
         match inner {
             WebTonicFuture::Request(future) => match future.poll_unpin(cx) {
@@ -82,6 +84,7 @@ impl<'a> Future for WebTonicFuture<'a> {
                     Err(err) => Poll::Ready(Err(err)),
                     Ok(request) => {
                         // Do the fetch
+                        console::log_1(&JsValue::from_str(&"fetching"));
                         let fetch = JsFuture::from(window().unwrap().fetch_with_request(&request));
                         *inner = WebTonicFuture::Fetch(fetch);
                         Poll::Pending
@@ -91,6 +94,7 @@ impl<'a> Future for WebTonicFuture<'a> {
             WebTonicFuture::Fetch(future) => match future.poll_unpin(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(response) => {
+                    console::log_1(&JsValue::from_str(&"parsing response"));
                     let fut = js_res_to_res(response);
                     *inner = WebTonicFuture::Response((async { fut.await }).boxed_local());
                     Poll::Pending
@@ -98,7 +102,10 @@ impl<'a> Future for WebTonicFuture<'a> {
             },
             WebTonicFuture::Response(future) => match future.poll_unpin(cx) {
                 Poll::Pending => Poll::Pending,
-                Poll::Ready(response) => Poll::Ready(response),
+                Poll::Ready(response) => {
+                    console::log_1(&JsValue::from_str(&"fetching"));
+                    Poll::Ready(response)
+                }
             },
             #[allow(unreachable_patterns)]
             _ => todo!(),
