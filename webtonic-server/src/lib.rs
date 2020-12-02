@@ -41,36 +41,3 @@ async fn handle_connection(ws: WebSocket) {
     let (_ws_tx, _ws_rx) = ws.split();
     todo!()
 }
-
-#[cfg(test)]
-mod tests {
-    mod hello_world {
-        tonic::include_proto!("helloworld");
-    }
-    use super::*;
-    use tonic::{Request, Response, Status};
-
-    use hello_world::greeter_server::{Greeter, GreeterServer};
-    use hello_world::{HelloReply, HelloRequest};
-
-    #[derive(Default)]
-    pub struct MyGreeter {}
-
-    #[tonic::async_trait]
-    impl Greeter for MyGreeter {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            println!("Got a request from {:?}", request.remote_addr());
-            let reply = HelloReply {
-                message: format!("Hello {}!", request.into_inner().name),
-            };
-            Ok(Response::new(reply))
-        }
-    }
-
-    fn compile() {
-        //Server::build<>
-    }
-}
