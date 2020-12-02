@@ -3,16 +3,30 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use bytes::{Buf, Bytes};
-use core::default::Default;
 use core::{
+    fmt,
     pin::Pin,
     task::{Context, Poll},
 };
 use http::{header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest};
 use http_body::Body as HttpBody;
-use prost;
 use prost::{Enumeration, Message};
+use std::error::Error;
 use tonic::body::BoxBody;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WebTonicError {
+    InvalidUrl,
+    ConnectionError,
+    FetchError(String),
+    HttpError(u16),
+}
+impl Error for WebTonicError {}
+impl fmt::Display for WebTonicError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Clone, PartialEq, Message)]
 pub struct Header {
@@ -132,16 +146,16 @@ fn http_headers_to_headers(headers: &HeaderMap) -> Vec<Header> {
 }
 
 fn http_method_to_method(method: &HttpMethod) -> Method {
-    match method {
-        &HttpMethod::GET => Method::Get,
-        &HttpMethod::HEAD => Method::Head,
-        &HttpMethod::POST => Method::Post,
-        &HttpMethod::PUT => Method::Put,
-        &HttpMethod::DELETE => Method::Delete,
-        &HttpMethod::CONNECT => Method::Connect,
-        &HttpMethod::OPTIONS => Method::Options,
-        &HttpMethod::TRACE => Method::Trace,
-        &HttpMethod::PATCH => Method::Patch,
+    match *method {
+        HttpMethod::GET => Method::Get,
+        HttpMethod::HEAD => Method::Head,
+        HttpMethod::POST => Method::Post,
+        HttpMethod::PUT => Method::Put,
+        HttpMethod::DELETE => Method::Delete,
+        HttpMethod::CONNECT => Method::Connect,
+        HttpMethod::OPTIONS => Method::Options,
+        HttpMethod::TRACE => Method::Trace,
+        HttpMethod::PATCH => Method::Patch,
         _ => panic!(),
     }
 }
