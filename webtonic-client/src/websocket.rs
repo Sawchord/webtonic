@@ -44,17 +44,26 @@ impl WebSocketConnector {
         Ok(Self { ws })
     }
 
-    pub(crate) async fn send(&self, request: &mut Bytes) -> Result<Bytes, WebTonicError> {
+    pub(crate) async fn send(&self, request: &Bytes) -> Result<Bytes, WebTonicError> {
         let ws = self.ws.clone();
 
         let send_promise = Promise::new(&mut |resolve, error| {
             // Error callback
+            let error_clone = error.clone();
             let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
                 console_log(&format!("Error while connecting {:?}", e));
                 error.call0(&JsValue::NULL).unwrap();
             }) as Box<dyn FnMut(ErrorEvent)>);
             ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
             onerror_callback.forget();
+
+            // Close callback
+            let onclose_callback = Closure::wrap(Box::new(move |_| {
+                console_log(&"Connection closed while waiting for a message");
+                error_clone.call0(&JsValue::NULL).unwrap();
+            }) as Box<dyn FnMut(JsValue)>);
+            ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
+            onclose_callback.forget();
 
             let ws_clone = ws.clone();
             // Message Callback
@@ -99,4 +108,21 @@ fn unset_message_handler(ws: &WebSocket) {
     }) as Box<dyn FnMut(MessageEvent)>);
     ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
     onmessage_callback.forget();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    // TODO: Make this compliant with server once it is available
+    #[wasm_bindgen_test]
+    async fn websocket() {
+        let ws = WebSocketConnector::connect("ws://localhost:1337".to_string())
+            .await
+            .unwrap();
+        let msg = ws.send(&Bytes::from(b"WebTonic\n".to_vec())).await.unwrap();
+        assert_eq!(&msg, &Bytes::from(b"Hello, WebTonic\n".to_vec()));
+    }
 }
