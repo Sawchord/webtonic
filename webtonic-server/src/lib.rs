@@ -3,7 +3,7 @@ use http::request::Request;
 use std::net::SocketAddr;
 use tonic::body::BoxBody;
 use tower_service::Service;
-use warp::ws::WebSocket;
+use warp::{ws::WebSocket, Filter};
 
 //use core::future::Future;
 //use core::pin::Pin;
@@ -26,7 +26,7 @@ impl<B: Service<Request<BoxBody>>> Server<B> {
 
     pub async fn serve<A: Into<SocketAddr>>(addr: A) -> Result<(), ()> {
         warp::serve(
-            warp::path!(/)
+            warp::path("/")
                 .and(warp::ws())
                 .map(|ws: warp::ws::Ws| ws.on_upgrade(move |socket| handle_connection(socket))),
         )
@@ -38,6 +38,39 @@ impl<B: Service<Request<BoxBody>>> Server<B> {
 }
 
 async fn handle_connection(ws: WebSocket) {
-    let (ws_tx, ws_rx) = ws.split();
+    let (_ws_tx, _ws_rx) = ws.split();
     todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    mod hello_world {
+        tonic::include_proto!("helloworld");
+    }
+    use super::*;
+    use tonic::{Request, Response, Status};
+
+    use hello_world::greeter_server::{Greeter, GreeterServer};
+    use hello_world::{HelloReply, HelloRequest};
+
+    #[derive(Default)]
+    pub struct MyGreeter {}
+
+    #[tonic::async_trait]
+    impl Greeter for MyGreeter {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            println!("Got a request from {:?}", request.remote_addr());
+            let reply = HelloReply {
+                message: format!("Hello {}!", request.into_inner().name),
+            };
+            Ok(Response::new(reply))
+        }
+    }
+
+    fn compile() {
+        //Server::build<>
+    }
 }
