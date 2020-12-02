@@ -8,7 +8,10 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
-use http::{header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest};
+use http::{
+    header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest,
+    response::Response as HttpResponse,
+};
 use http_body::Body as HttpBody;
 use prost::{Enumeration, Message};
 use std::error::Error;
@@ -105,13 +108,13 @@ pub async fn http_request_to_call(mut request: HttpRequest<BoxBody>) -> Call {
     }
 }
 
-pub fn call_to_http_request(call: Call) -> HttpRequest<BoxBody> {
+pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
     use http::header::{HeaderName, HeaderValue};
     use http::request::Builder;
 
     let request = match call.request {
         Some(request) => request,
-        None => todo!(),
+        None => return None,
     };
 
     let mut builder = Builder::new()
@@ -132,7 +135,47 @@ pub fn call_to_http_request(call: Call) -> HttpRequest<BoxBody> {
             Some(body) => BoxBody::new(body),
             None => BoxBody::new(Body { body: vec![] }),
         })
-        .unwrap()
+        .ok()
+}
+
+pub async fn http_response_to_reply(response: &mut HttpResponse<BoxBody>) -> Reply {
+    Reply {
+        response: Some(Response {
+            status: response.status().as_u16() as u32,
+            headers: http_headers_to_headers(response.headers()),
+        }),
+        body: match response.body_mut().data().await {
+            Some(Ok(mut body)) => Some(Body {
+                body: body.to_bytes().to_vec(),
+            }),
+            _ => None,
+        },
+    }
+}
+
+pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
+    use http::header::{HeaderName, HeaderValue};
+    use http::response::Builder;
+
+    let response = match reply.response {
+        Some(response) => response,
+        None => return None,
+    };
+
+    let mut builder = Builder::new().status(response.status as u16);
+
+    for header in response.headers {
+        builder = builder.header(
+            HeaderName::from_bytes(header.name.as_bytes()).unwrap(),
+            HeaderValue::from_str(header.value.as_str()).unwrap(),
+        )
+    }
+    builder
+        .body(match reply.body {
+            Some(body) => BoxBody::new(body),
+            None => BoxBody::new(Body { body: vec![] }),
+        })
+        .ok()
 }
 
 fn http_headers_to_headers(headers: &HeaderMap) -> Vec<Header> {
