@@ -1,6 +1,7 @@
 use futures::StreamExt;
 use http::request::Request;
 use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
 use tonic::body::BoxBody;
 use tower_service::Service;
 use warp::{ws::WebSocket, Filter};
@@ -17,17 +18,20 @@ use warp::{ws::WebSocket, Filter};
 //     >,
 // >;
 
-pub struct Server<B: Service<Request<BoxBody>>>(B);
+// TODO: Use tonic::NamedService to get the path right once multiple services are allowed
+
+#[derive(Clone, Debug)]
+pub struct Server<B: Service<Request<BoxBody>>>(Arc<RwLock<B>>);
 
 impl<B: Service<Request<BoxBody>>> Server<B> {
-    pub fn build(&mut self, service: B) -> Self {
-        Self(service)
+    pub fn build(service: B) -> Self {
+        Self(Arc::new(RwLock::new(service)))
     }
 
-    pub async fn serve<A: Into<SocketAddr>>(addr: A) -> Result<(), ()> {
+    pub async fn serve<A: Into<SocketAddr>>(&self, addr: A) -> Result<(), ()> {
         warp::serve(
-            warp::path("/")
-                .and(warp::ws())
+            warp::path::end()
+                .and(warp::ws()) //.and(self.clone())
                 .map(|ws: warp::ws::Ws| ws.on_upgrade(move |socket| handle_connection(socket))),
         )
         .run(addr)
