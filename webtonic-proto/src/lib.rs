@@ -133,10 +133,7 @@ pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
 
     builder
         .body(match call.body {
-            Some(body) => {
-                log::debug!("Body: {:?}", body);
-                BoxBody::new(body)
-            }
+            Some(body) => BoxBody::new(body),
             None => BoxBody::new(Body { body: vec![] }),
         })
         .ok()
@@ -231,13 +228,20 @@ impl HttpBody for Body {
         self: Pin<&mut Self>,
         _cx: &mut Context,
     ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
-        Poll::Ready(Some(Ok(Bytes::from(self.body.clone()))))
+        if !self.body.is_empty() {
+            let poll = Poll::Ready(Some(Ok(Bytes::from(self.body.clone()))));
+            self.get_mut().body = vec![];
+            poll
+        } else {
+            Poll::Ready(None)
+        }
     }
 
     fn poll_trailers(
         self: Pin<&mut Self>,
         _cx: &mut Context,
     ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        todo!("trailer polling is unimplemented")
+        //todo!("trailer polling is unimplemented")
+        Poll::Ready(Ok(None))
     }
 }

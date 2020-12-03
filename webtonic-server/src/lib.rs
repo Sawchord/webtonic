@@ -106,7 +106,7 @@ where
         // Call the inner service
         let mut response = {
             let mut guard = server.0.lock().await;
-            log::debug!("feeding call {:?}", call);
+            log::debug!("forwarding call {:?}", call);
 
             match guard.call(call).await {
                 Ok(response) => response,
@@ -116,6 +116,7 @@ where
                 }
             }
         };
+        log::debug!("got response {:?}", response);
 
         // Turn reply first into protobuf, then into message
         let reply = webtonic_proto::http_response_to_reply(&mut response).await;
