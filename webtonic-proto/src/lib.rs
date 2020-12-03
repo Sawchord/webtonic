@@ -10,7 +10,7 @@ use core::{
 };
 use http::{
     header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest,
-    response::Response as HttpResponse,
+    response::Response as HttpResponse, version::Version,
 };
 use http_body::Body as HttpBody;
 use prost::{Enumeration, Message};
@@ -118,6 +118,7 @@ pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
     };
 
     let mut builder = Builder::new()
+        .version(Version::HTTP_2)
         .method(method_to_http_method(
             Method::from_i32(request.method).unwrap(),
         ))
@@ -162,7 +163,9 @@ pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
         None => return None,
     };
 
-    let mut builder = Builder::new().status(response.status as u16);
+    let mut builder = Builder::new()
+        .version(Version::HTTP_2)
+        .status(response.status as u16);
 
     for header in response.headers {
         builder = builder.header(
