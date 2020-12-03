@@ -62,49 +62,81 @@ impl<B> Server<B> {
     }
 }
 
-// TODO: Proper error handling
+// TODO: Returns Status errors before continuing
 async fn handle_connection<B>(ws: WebSocket, server: Server<B>)
 where
     B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Sync + Send + 'static,
 {
+    log::debug!("opening a new connection");
+
     let (ws_tx, mut ws_rx) = ws.split();
     let (tx, rx) = unbounded_channel();
     // Create outbound task
     tokio::task::spawn(rx.forward(ws_tx));
 
     while let Some(msg) = ws_rx.next().await {
+        log::debug!("received message {:?}", msg);
+
         // Check that we got a message and it is binary
         let msg = match msg {
             Ok(msg) => {
                 if msg.is_binary() {
                     Bytes::from(msg.into_bytes())
                 } else {
+                    log::warn!("expected binary message, got {:?}", msg);
                     todo!()
                 }
             }
-            Err(_) => todo!(),
+            Err(e) => {
+                log::warn!("received error message: {:?}", e);
+                todo!()
+            }
         };
 
         // Parse message first into protobuf then into http request
         let call = match Call::decode(msg) {
             Ok(call) => call,
-            Err(_) => todo!(),
+            Err(e) => {
+                log::warn!("failed to decode call {:?}", e);
+                todo!()
+            }
         };
         let call = webtonic_proto::call_to_http_request(call).unwrap();
 
         // Call the inner service
-        let mut response = match server.0.lock().await.call(call).await {
-            Ok(response) => response,
-            Err(_) => todo!(),
+        let mut response = {
+            let mut guard = server.0.lock().await;
+            log::warn!("aquired lock");
+
+            match guard.call(call).await {
+                Ok(response) => response,
+                Err(_e) => {
+                    //log::warn!("service returned an error {:?}", e);
+                    todo!()
+                }
+            }
         };
 
         // Turn reply first into protobuf, then into message
         let reply = webtonic_proto::http_response_to_reply(&mut response).await;
         let mut msg = BytesMut::new();
-        reply.encode(&mut msg).unwrap();
+        match reply.encode(&mut msg) {
+            Ok(()) => (),
+            Err(e) => {
+                log::warn!("failed to decode message {:?}", e);
+                todo!()
+            }
+        };
         let msg = Message::binary(msg.as_ref());
 
         // Return the message
-        tx.send(Ok(msg)).unwrap();
+        log::debug!("sending response {:?}", msg);
+        match tx.send(Ok(msg)) {
+            Ok(()) => (),
+            Err(e) => {
+                log::warn!("stream no longer exists {:?}", e);
+                break;
+            }
+        }
     }
 }
