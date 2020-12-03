@@ -60,6 +60,7 @@ async fn call(
     //TODO: Error handling
     // Parse request into bytes
     let request = webtonic_proto::http_request_to_call(request).await;
+    console_log(&format!("parsed call {:?}", request));
     let mut msg = BytesMut::new();
     request.encode(&mut msg).unwrap();
 

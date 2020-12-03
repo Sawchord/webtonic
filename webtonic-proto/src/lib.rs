@@ -43,6 +43,8 @@ pub struct Header {
 pub struct Body {
     #[prost(bytes, tag = "1")]
     body: Vec<u8>,
+    #[prost(message, repeated, tag = "2")]
+    trailers: Vec<Header>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Enumeration)]
@@ -93,19 +95,14 @@ pub struct Reply {
 }
 
 pub async fn http_request_to_call(mut request: HttpRequest<BoxBody>) -> Call {
-    Call {
-        request: Some(Request {
-            uri: format!("{:?}", request.uri()),
-            method: http_method_to_method(request.method()) as i32,
-            headers: http_headers_to_headers(request.headers()),
-        }),
-        body: match request.body_mut().data().await {
-            Some(Ok(mut body)) => Some(Body {
-                body: body.to_bytes().to_vec(),
-            }),
-            _ => None,
-        },
-    }
+    let body = http_body_to_body(&mut request).await;
+    let request = Some(Request {
+        uri: format!("{:?}", request.uri()),
+        method: http_method_to_method(request.method()) as i32,
+        headers: http_headers_to_headers(request.headers()),
+    });
+
+    Call { request, body }
 }
 
 pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
@@ -134,24 +131,20 @@ pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
     builder
         .body(match call.body {
             Some(body) => BoxBody::new(body),
-            None => BoxBody::new(Body { body: vec![] }),
+            None => BoxBody::new(Body::empty()),
         })
         .ok()
 }
 
 pub async fn http_response_to_reply(response: &mut HttpResponse<BoxBody>) -> Reply {
-    Reply {
-        response: Some(Response {
-            status: response.status().as_u16() as u32,
-            headers: http_headers_to_headers(response.headers()),
-        }),
-        body: match response.body_mut().data().await {
-            Some(Ok(mut body)) => Some(Body {
-                body: body.to_bytes().to_vec(),
-            }),
-            _ => None,
-        },
-    }
+    let body = http_body_to_body(response).await;
+
+    let response = Some(Response {
+        status: response.status().as_u16() as u32,
+        headers: http_headers_to_headers(response.headers()),
+    });
+
+    Reply { response, body }
 }
 
 pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
@@ -176,7 +169,7 @@ pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
     builder
         .body(match reply.body {
             Some(body) => BoxBody::new(body),
-            None => BoxBody::new(Body { body: vec![] }),
+            None => BoxBody::new(Body::empty()),
         })
         .ok()
 }
@@ -203,6 +196,32 @@ fn http_method_to_method(method: &HttpMethod) -> Method {
         HttpMethod::TRACE => Method::Trace,
         HttpMethod::PATCH => Method::Patch,
         _ => panic!(),
+    }
+}
+
+async fn http_body_to_body<B: HttpBody + Unpin>(body: &mut B) -> Option<Body> {
+    let trailers = match body.trailers().await {
+        Ok(Some(trailers)) => Some(http_headers_to_headers(&trailers)),
+        Ok(None) => None,
+        Err(_) => None,
+    };
+
+    let body = match body.data().await {
+        Some(Ok(mut body)) => Some(body.to_bytes().to_vec()),
+        _ => None,
+    };
+
+    match (body, trailers) {
+        (None, None) => None,
+        (Some(body), None) => Some(Body {
+            body,
+            trailers: vec![],
+        }),
+        (None, Some(trailers)) => Some(Body {
+            body: vec![],
+            trailers,
+        }),
+        (Some(body), Some(trailers)) => Some(Body { body, trailers }),
     }
 }
 
@@ -243,5 +262,14 @@ impl HttpBody for Body {
     ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
         //todo!("trailer polling is unimplemented")
         Poll::Ready(Ok(None))
+    }
+}
+
+impl Body {
+    fn empty() -> Self {
+        Self {
+            body: vec![],
+            trailers: vec![],
+        }
     }
 }
