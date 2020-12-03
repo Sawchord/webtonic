@@ -5,8 +5,11 @@ use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{mpsc::unbounded_channel, Mutex};
-use tonic::body::BoxBody;
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedSender},
+    Mutex,
+};
+use tonic::{body::BoxBody, Status};
 use tower_service::Service;
 use warp::{
     ws::{Message, WebSocket},
@@ -77,29 +80,41 @@ where
     while let Some(msg) = ws_rx.next().await {
         log::debug!("received message {:?}", msg);
 
+        // Try to send status error
+        // If even that fails, end task
+        macro_rules! status_err {
+            ($status: expr) => {
+                match return_status(&tx, $status).await {
+                    true => continue,
+                    false => break,
+                }
+            };
+        }
+
         // Check that we got a message and it is binary
         let msg = match msg {
             Ok(msg) => {
                 if msg.is_binary() {
                     Bytes::from(msg.into_bytes())
+                } else if msg.is_close() {
+                    log::debug!("channel was closed");
+                    break;
                 } else {
-                    log::warn!("expected binary message, got {:?}", msg);
-                    todo!()
+                    status_err!(Status::invalid_argument(
+                        "websocket messages must be sent in binary"
+                    ))
                 }
             }
-            Err(e) => {
-                log::warn!("received error message: {:?}", e);
-                todo!()
-            }
+            Err(e) => status_err!(Status::internal(&format!(
+                "error on the websocket channel {:?}",
+                e
+            ))),
         };
 
         // Parse message first into protobuf then into http request
         let call = match Call::decode(msg) {
             Ok(call) => call,
-            Err(e) => {
-                log::warn!("failed to decode call {:?}", e);
-                todo!()
-            }
+            Err(e) => status_err!(Status::internal(&format!("failed to decode call {:?}", e))),
         };
         let call = webtonic_proto::call_to_http_request(call).unwrap();
 
@@ -111,8 +126,7 @@ where
             match guard.call(call).await {
                 Ok(response) => response,
                 Err(_e) => {
-                    //log::warn!("service returned an error {:?}", e);
-                    todo!()
+                    panic!("Tonic services never error");
                 }
             }
         };
@@ -123,10 +137,7 @@ where
         let mut msg = BytesMut::new();
         match reply.encode(&mut msg) {
             Ok(()) => (),
-            Err(e) => {
-                log::warn!("failed to decode message {:?}", e);
-                todo!()
-            }
+            Err(e) => status_err!(Status::internal(&format!("failed to decode reply {:?}", e))),
         };
         let msg = Message::binary(msg.as_ref());
 
@@ -139,5 +150,20 @@ where
                 break;
             }
         }
+    }
+}
+
+async fn return_status(tx: &UnboundedSender<Result<Message, warp::Error>>, status: Status) -> bool {
+    log::warn!("error while processing msg, returning status {:?}", status);
+    let mut response = status.to_http();
+
+    let reply = webtonic_proto::http_response_to_reply(&mut response).await;
+    let mut msg = BytesMut::new();
+    reply.encode(&mut msg).unwrap();
+    let msg = Message::binary(msg.as_ref());
+
+    match tx.send(Ok(msg)) {
+        Ok(()) => true,
+        Err(_) => false,
     }
 }
