@@ -26,6 +26,7 @@ pub enum WebTonicError {
     ConnectionError,
     EncodingError,
     DecodingError,
+    ConnectionClosed,
 }
 impl Error for WebTonicError {}
 impl fmt::Display for WebTonicError {
