@@ -20,6 +20,6 @@ mod tests {
         });
 
         let response = client.say_hello(request).await.unwrap().into_inner();
-        assert_eq!(response.message, "Hello, WebTonic");
+        assert_eq!(response.message, "Hello WebTonic!");
     }
 }

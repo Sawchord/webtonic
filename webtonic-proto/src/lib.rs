@@ -9,8 +9,11 @@ use core::{
     task::{Context, Poll},
 };
 use http::{
-    header::HeaderMap, method::Method as HttpMethod, request::Request as HttpRequest,
-    response::Response as HttpResponse, version::Version,
+    header::{HeaderMap, HeaderName, HeaderValue},
+    method::Method as HttpMethod,
+    request::Request as HttpRequest,
+    response::Response as HttpResponse,
+    version::Version,
 };
 use http_body::Body as HttpBody;
 use prost::{Enumeration, Message};
@@ -106,7 +109,6 @@ pub async fn http_request_to_call(mut request: HttpRequest<BoxBody>) -> Call {
 }
 
 pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
-    use http::header::{HeaderName, HeaderValue};
     use http::request::Builder;
 
     let request = match call.request {
@@ -148,7 +150,6 @@ pub async fn http_response_to_reply(response: &mut HttpResponse<BoxBody>) -> Rep
 }
 
 pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
-    use http::header::{HeaderName, HeaderValue};
     use http::response::Builder;
 
     let response = match reply.response {
@@ -260,8 +261,21 @@ impl HttpBody for Body {
         self: Pin<&mut Self>,
         _cx: &mut Context,
     ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        //todo!("trailer polling is unimplemented")
-        Poll::Ready(Ok(None))
+        if !self.trailers.is_empty() {
+            let mut res = HeaderMap::new();
+
+            for trailer in &self.trailers {
+                res.append(
+                    HeaderName::from_bytes(trailer.name.as_bytes()).unwrap(),
+                    HeaderValue::from_str(trailer.value.as_str()).unwrap(),
+                );
+            }
+            self.get_mut().trailers.clear();
+
+            Poll::Ready(Ok(Some(res)))
+        } else {
+            Poll::Ready(Ok(None))
+        }
     }
 }
 
