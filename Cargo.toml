@@ -5,4 +5,5 @@ members = [
     "webtonic-client",
     "webtonic-server",
     "server-test",
+    "client-test"
 ]
