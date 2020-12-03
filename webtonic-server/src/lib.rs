@@ -106,7 +106,7 @@ where
         // Call the inner service
         let mut response = {
             let mut guard = server.0.lock().await;
-            log::warn!("aquired lock");
+            log::debug!("feeding call {:?}", call);
 
             match guard.call(call).await {
                 Ok(response) => response,

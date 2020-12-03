@@ -133,7 +133,10 @@ pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
 
     builder
         .body(match call.body {
-            Some(body) => BoxBody::new(body),
+            Some(body) => {
+                log::debug!("Body: {:?}", body);
+                BoxBody::new(body)
+            }
             None => BoxBody::new(Body { body: vec![] }),
         })
         .ok()

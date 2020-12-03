@@ -10,3 +10,4 @@ http-body = { version = "0.3.1", default-features = false }
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 bytes = { version = "0.5.3", default-features = false }
 tonic = { version = "0.3.1", default-features = false }
+log = "0.4.11"
