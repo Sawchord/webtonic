@@ -1,9 +1,9 @@
 use bytes::Bytes;
-use js_sys::{ArrayBuffer, Function, Promise, Uint8Array};
+use js_sys::{ArrayBuffer, Promise, Uint8Array};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{console, ErrorEvent, MessageEvent, WebSocket};
+use web_sys::{ErrorEvent, MessageEvent, WebSocket};
 use webtonic_proto::WebTonicError;
 
 use crate::console_log;
@@ -12,6 +12,8 @@ use crate::console_log;
 pub(crate) struct WebSocketConnector {
     ws: WebSocket,
 }
+
+// FIXME: Calling send twice likely causes a race condition
 
 impl WebSocketConnector {
     pub(crate) async fn connect(uri: &str) -> Result<Self, WebTonicError> {
@@ -32,7 +34,6 @@ impl WebSocketConnector {
 
             // Connect callback
             let onopen_callback = Closure::wrap(Box::new(move |_| {
-                console_log(&"Connected");
                 resolve.call0(&JsValue::NULL).unwrap();
             }) as Box<dyn FnMut(JsValue)>);
             ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
@@ -52,7 +53,7 @@ impl WebSocketConnector {
             // Error callback
             let error_clone = error.clone();
             let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
-                console_log(&format!("Error while connecting {:?}", e));
+                console_log(&format!("Error while waiting for message {:?}", e));
                 error.call0(&JsValue::NULL).unwrap();
             }) as Box<dyn FnMut(ErrorEvent)>);
             ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));

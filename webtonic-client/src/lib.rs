@@ -1,11 +1,8 @@
-#![allow(dead_code, unused_imports)]
-
 mod websocket;
 
 use bytes::BytesMut;
 use core::{
     marker::PhantomData,
-    pin::Pin,
     task::{Context, Poll},
 };
 use futures::{future::LocalBoxFuture, FutureExt};
@@ -57,19 +54,20 @@ async fn call(
     ws: WebSocketConnector,
     request: Request<BoxBody>,
 ) -> Result<Response<BoxBody>, WebTonicError> {
-    //TODO: Error handling
     // Parse request into bytes
     let request = webtonic_proto::http_request_to_call(request).await;
-    console_log(&format!("parsed call {:?}", request));
     let mut msg = BytesMut::new();
-    request.encode(&mut msg).unwrap();
+    request
+        .encode(&mut msg)
+        .map_err(|_| WebTonicError::EncodingError)?;
 
     // Make the request
     let msg = ws.send(&msg.into()).await?;
 
     // Parse response
-    let reply = Reply::decode(msg).unwrap();
-    let response = webtonic_proto::reply_to_http_response(reply).unwrap();
+    let reply = Reply::decode(msg).map_err(|_| WebTonicError::DecodingError)?;
+    let response =
+        webtonic_proto::reply_to_http_response(reply).ok_or(WebTonicError::DecodingError)?;
 
     // Return
     Ok(response)

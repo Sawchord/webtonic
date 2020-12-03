@@ -24,8 +24,8 @@ use tonic::body::BoxBody;
 pub enum WebTonicError {
     InvalidUrl,
     ConnectionError,
-    FetchError(String),
-    HttpError(u16),
+    EncodingError,
+    DecodingError,
 }
 impl Error for WebTonicError {}
 impl fmt::Display for WebTonicError {
