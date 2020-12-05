@@ -52,10 +52,10 @@ impl<'a> GrpcService<BoxBody> for Client<'a> {
 
 async fn call(
     ws: WebSocketConnector,
-    request: Request<BoxBody>,
+    mut request: Request<BoxBody>,
 ) -> Result<Response<BoxBody>, WebTonicError> {
     // Parse request into bytes
-    let request = webtonic_proto::http_request_to_call(request).await;
+    let request = webtonic_proto::http_request_to_call(&mut request).await;
     let mut msg = BytesMut::new();
     request
         .encode(&mut msg)

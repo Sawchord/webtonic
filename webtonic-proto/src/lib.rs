@@ -36,15 +36,15 @@ impl fmt::Display for WebTonicError {
 }
 
 #[derive(Clone, PartialEq, Message)]
-pub struct Header {
+struct Header {
     #[prost(string, tag = "1")]
-    pub name: String,
+    name: String,
     #[prost(string, tag = "2")]
-    pub value: String,
+    value: String,
 }
 
 #[derive(Clone, PartialEq, Message)]
-pub struct Body {
+struct Body {
     #[prost(bytes, tag = "1")]
     body: Vec<u8>,
     #[prost(message, repeated, tag = "2")]
@@ -52,7 +52,7 @@ pub struct Body {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Enumeration)]
-pub enum Method {
+enum Method {
     Get = 0,
     Head = 1,
     Post = 2,
@@ -65,41 +65,41 @@ pub enum Method {
 }
 
 #[derive(Clone, PartialEq, Message)]
-pub struct Request {
+struct Request {
     #[prost(string, tag = "1")]
-    pub uri: String,
+    uri: String,
     #[prost(enumeration = "Method", tag = "2")]
-    pub method: i32,
+    method: i32,
     #[prost(message, repeated, tag = "3")]
-    pub headers: Vec<Header>,
+    headers: Vec<Header>,
 }
 
 #[derive(Clone, PartialEq, Message)]
-pub struct Response {
+struct Response {
     #[prost(uint32, tag = "1")]
-    pub status: u32,
+    status: u32,
     #[prost(message, repeated, tag = "2")]
-    pub headers: Vec<Header>,
+    headers: Vec<Header>,
 }
 
 #[derive(Clone, PartialEq, Message)]
 pub struct Call {
     #[prost(message, tag = "1")]
-    pub request: Option<Request>,
+    request: Option<Request>,
     #[prost(message, tag = "2")]
-    pub body: Option<Body>,
+    body: Option<Body>,
 }
 
 #[derive(Clone, PartialEq, Message)]
 pub struct Reply {
     #[prost(message, tag = "1")]
-    pub response: Option<Response>,
+    response: Option<Response>,
     #[prost(message, tag = "2")]
-    pub body: Option<Body>,
+    body: Option<Body>,
 }
 
-pub async fn http_request_to_call(mut request: HttpRequest<BoxBody>) -> Call {
-    let body = http_body_to_body(&mut request).await;
+pub async fn http_request_to_call(request: &mut HttpRequest<BoxBody>) -> Call {
+    let body = http_body_to_body(request).await;
     let request = Some(Request {
         uri: format!("{:?}", request.uri()),
         method: http_method_to_method(request.method()) as i32,
