@@ -1,6 +1,10 @@
 use bytes::{Bytes, BytesMut};
-use core::marker::{Send, Sync};
-use futures::StreamExt;
+use core::{
+    marker::{Send, Sync},
+    task::Context,
+    task::Poll,
+};
+use futures::{future, StreamExt};
 use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::{collections::BTreeMap, net::SocketAddr};
@@ -11,7 +15,7 @@ use warp::{
     ws::{Message, WebSocket},
     Filter,
 };
-use webtonic_proto::Call;
+use webtonic_proto::{Call, WebTonicError};
 
 // use core::future::Future;
 // use core::pin::Pin;
@@ -172,5 +176,62 @@ async fn return_status(tx: &UnboundedSender<Result<Message, warp::Error>>, statu
     match tx.send(Ok(msg)) {
         Ok(()) => true,
         Err(_) => false,
+    }
+}
+
+struct Route<A, B>(A, B);
+
+impl<A, B> Service<(String, Request<BoxBody>)> for Route<A, B>
+where
+    A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = WebTonicError>
+        + NamedService,
+    A::Future: Send + 'static,
+    B: Service<(String, Request<BoxBody>), Response = Response<BoxBody>, Error = WebTonicError>,
+    B::Future: Send + 'static,
+{
+    type Response = Response<BoxBody>;
+    type Error = WebTonicError;
+    type Future = future::Either<A::Future, B::Future>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Ok(()).into()
+    }
+
+    fn call(&mut self, req: (String, Request<BoxBody>)) -> Self::Future {
+        if req.0.eq(<A as NamedService>::NAME) {
+            future::Either::Left(self.0.call(req.1))
+        } else {
+            future::Either::Right(self.1.call((req.0, req.1)))
+        }
+    }
+}
+
+impl<A, B> Route<A, B> {
+    fn push<C>(self, service: C) -> Route<C, Route<A, B>> {
+        Route(service, self)
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+struct Unimplemented;
+
+impl Service<Request<BoxBody>> for Unimplemented {
+    type Response = Response<BoxBody>;
+    type Error = WebTonicError;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Ok(()).into()
+    }
+
+    fn call(&mut self, _req: Request<BoxBody>) -> Self::Future {
+        future::ok(
+            http::Response::builder()
+                .status(200)
+                .header("grpc-status", "12")
+                .header("content-type", "application/grpc")
+                .body(BoxBody::empty())
+                .unwrap(),
+        )
     }
 }
