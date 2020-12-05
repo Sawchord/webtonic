@@ -68,7 +68,6 @@ impl Echo for MyEcho {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
-    //let addr = "[::1]:50051".parse().unwrap();
     let greeter = MyGreeter::default();
     let echo = MyEcho::default();
 
@@ -80,10 +79,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .serve(([127, 0, 0, 1], 1337))
         .await
         .unwrap();
-    // webtonic_server::Server::build(GreeterServer::new(greeter))
-    //     .serve(([127, 0, 0, 1], 1337))
-    //     .await
-    //     .unwrap();
 
     Ok(())
 }
