@@ -21,7 +21,7 @@ use webtonic_proto::Call;
 //         Request<BoxBody>,
 //         Response = Response<BoxBody>,
 //         Error = Box<dyn Error>,
-//         Future = Pin<Box<dyn Future<Output = Result<Response<BoxBody>, Box<dyn Error>>>>>,
+//         Future = Pin<Box<dyn Future<Output = Result<Response<BoxBody>, Box<dyn Error>>> + Send>>,
 //     >,
 // >;
 
@@ -47,7 +47,7 @@ impl<B: Clone> Server<B> {
     pub async fn serve<A>(self, addr: A) -> Result<(), ()>
     where
         A: Into<SocketAddr>,
-        B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Clone + Sync + Send + 'static,
+        B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Sync + Send + 'static,
         <B as Service<Request<BoxBody>>>::Future: Send,
     {
         let server_clone = warp::any().map(move || self.clone());
@@ -63,10 +63,9 @@ impl<B: Clone> Server<B> {
         Ok(())
     }
 
-    // TODO: Returns Status errors before continuing
     async fn handle_connection(ws: WebSocket, server: Server<B>)
     where
-        B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Clone + Sync + Send + 'static,
+        B: Service<Request<BoxBody>, Response = Response<BoxBody>>,
     {
         log::debug!("opening a new connection");
 
@@ -116,7 +115,7 @@ impl<B: Clone> Server<B> {
             };
             let call = webtonic_proto::call_to_http_request(call).unwrap();
 
-            // Call the inner service
+            // Get the path to the requested service
             let path: &str = call
                 .uri()
                 .path()
@@ -126,9 +125,10 @@ impl<B: Clone> Server<B> {
                 .unwrap_or(&&"/");
             log::debug!("request to path {:?}", path);
 
+            // Call the inner service
             let mut server_clone = match server.0.get(path) {
                 Some(server) => server.clone(),
-                None => todo!(),
+                None => status_err!(Status::unimplemented("")),
             };
             let mut response = match server_clone.call(call).await {
                 Ok(response) => response,
