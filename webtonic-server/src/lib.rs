@@ -9,13 +9,13 @@ use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::{collections::BTreeMap, net::SocketAddr};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use tonic::{body::BoxBody, transport::NamedService, Status};
+use tonic::{body::BoxBody, codegen::Never, transport::NamedService, Status};
 use tower_service::Service;
 use warp::{
     ws::{Message, WebSocket},
     Filter,
 };
-use webtonic_proto::{Call, WebTonicError};
+use webtonic_proto::Call;
 
 // use core::future::Future;
 // use core::pin::Pin;
@@ -179,10 +179,11 @@ async fn return_status(tx: &UnboundedSender<Result<Message, warp::Error>>, statu
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Server2 {}
 
 impl Server2 {
-    pub fn new() -> Self {
+    pub fn builder() -> Self {
         Self {}
     }
 
@@ -197,6 +198,7 @@ impl Server2 {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Router<A, B> {
     server: Server2,
     root: Route<A, B>,
@@ -209,20 +211,50 @@ impl<A, B> Router<A, B> {
             root: Route(service, self.root),
         }
     }
+
+    pub async fn serve<ADDR>(self, addr: ADDR) -> Result<(), ()>
+    where
+        ADDR: Into<SocketAddr>,
+        A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = Never>
+            + NamedService
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+        A::Future: Send + 'static,
+        B: Service<(String, Request<BoxBody>), Response = Response<BoxBody>, Error = Never>
+            + Clone
+            + Send
+            + Sync
+            + 'static,
+        B::Future: Send + 'static,
+    {
+        let server_clone = warp::any().map(move || self.clone());
+
+        warp::serve(warp::path::end().and(warp::ws()).and(server_clone).map(
+            |ws: warp::ws::Ws, server_clone| {
+                ws.on_upgrade(|socket| handle_connection2(socket, server_clone))
+            },
+        ))
+        .run(addr)
+        .await;
+
+        Ok(())
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct Route<A, B>(A, B);
 
 impl<A, B> Service<(String, Request<BoxBody>)> for Route<A, B>
 where
-    A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = WebTonicError>
-        + NamedService,
+    A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = Never> + NamedService,
     A::Future: Send + 'static,
-    B: Service<(String, Request<BoxBody>), Response = Response<BoxBody>, Error = WebTonicError>,
+    B: Service<(String, Request<BoxBody>), Response = Response<BoxBody>, Error = Never>,
     B::Future: Send + 'static,
 {
     type Response = Response<BoxBody>;
-    type Error = WebTonicError;
+    type Error = Never;
     type Future = future::Either<A::Future, B::Future>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -241,16 +273,16 @@ where
 #[derive(Default, Clone, Debug)]
 pub struct Unimplemented;
 
-impl Service<Request<BoxBody>> for Unimplemented {
+impl Service<(String, Request<BoxBody>)> for Unimplemented {
     type Response = Response<BoxBody>;
-    type Error = WebTonicError;
+    type Error = Never;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Ok(()).into()
     }
 
-    fn call(&mut self, _req: Request<BoxBody>) -> Self::Future {
+    fn call(&mut self, _req: (String, Request<BoxBody>)) -> Self::Future {
         future::ok(
             http::Response::builder()
                 .status(200)
@@ -259,5 +291,101 @@ impl Service<Request<BoxBody>> for Unimplemented {
                 .body(BoxBody::empty())
                 .unwrap(),
         )
+    }
+}
+
+async fn handle_connection2<A, B>(ws: WebSocket, routes: Router<A, B>)
+where
+    A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = Never>
+        + NamedService
+        + Clone,
+    A::Future: Send + 'static,
+    B: Service<(String, Request<BoxBody>), Response = Response<BoxBody>, Error = Never> + Clone,
+    B::Future: Send + 'static,
+{
+    log::debug!("opening a new connection");
+
+    let (ws_tx, mut ws_rx) = ws.split();
+    let (tx, rx) = unbounded_channel();
+    // Create outbound task
+    tokio::task::spawn(rx.forward(ws_tx));
+
+    while let Some(msg) = ws_rx.next().await {
+        log::debug!("received message {:?}", msg);
+
+        // Try to send status error
+        // If even that fails, end task
+        macro_rules! status_err {
+            ($status: expr) => {
+                match return_status(&tx, $status).await {
+                    true => continue,
+                    false => break,
+                }
+            };
+        }
+
+        // Check that we got a message and it is binary
+        let msg = match msg {
+            Ok(msg) => {
+                if msg.is_binary() {
+                    Bytes::from(msg.into_bytes())
+                } else if msg.is_close() {
+                    log::debug!("channel was closed");
+                    break;
+                } else {
+                    status_err!(Status::invalid_argument(
+                        "websocket messages must be sent in binary"
+                    ))
+                }
+            }
+            Err(e) => status_err!(Status::internal(&format!(
+                "error on the websocket channel {:?}",
+                e
+            ))),
+        };
+
+        // Parse message first into protobuf then into http request
+        let call = match Call::decode(msg) {
+            Ok(call) => call,
+            Err(e) => status_err!(Status::internal(&format!("failed to decode call {:?}", e))),
+        };
+        let call = webtonic_proto::call_to_http_request(call).unwrap();
+
+        // Get the path to the requested service
+        let path: &str = call
+            .uri()
+            .path()
+            .split("/")
+            .collect::<Vec<&str>>()
+            .get(1)
+            .unwrap_or(&&"/");
+        log::debug!("request to path {:?}", path);
+
+        let mut response = match routes.root.clone().call((path.to_string(), call)).await {
+            Ok(response) => response,
+            Err(_e) => {
+                panic!("Tonic services never error");
+            }
+        };
+        log::debug!("got response {:?}", response);
+
+        // Turn reply first into protobuf, then into message
+        let reply = webtonic_proto::http_response_to_reply(&mut response).await;
+        let mut msg = BytesMut::new();
+        match reply.encode(&mut msg) {
+            Ok(()) => (),
+            Err(e) => status_err!(Status::internal(&format!("failed to decode reply {:?}", e))),
+        };
+        let msg = Message::binary(msg.as_ref());
+
+        // Return the message
+        log::debug!("sending response {:?}", msg);
+        match tx.send(Ok(msg)) {
+            Ok(()) => (),
+            Err(e) => {
+                log::warn!("stream no longer exists {:?}", e);
+                break;
+            }
+        }
     }
 }

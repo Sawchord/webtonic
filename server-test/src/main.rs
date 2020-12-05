@@ -1,4 +1,4 @@
-use crate::echo_server::Echo;
+use crate::echo_server::{Echo, EchoServer};
 use crate::greeter_server::{Greeter, GreeterServer};
 use core::pin::Pin;
 use futures::Stream;
@@ -70,13 +70,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     //let addr = "[::1]:50051".parse().unwrap();
     let greeter = MyGreeter::default();
-    //let echo = MyEcho::default();
+    let echo = MyEcho::default();
 
     //println!("GreeterServer listening on {}", addr);
 
-    webtonic_server::Server::builder()
+    webtonic_server::Server2::builder()
         .add_service(GreeterServer::new(greeter))
-        //.add_service(EchoServer::new(echo))
+        .add_service(EchoServer::new(echo))
         .serve(([127, 0, 0, 1], 1337))
         .await
         .unwrap();
