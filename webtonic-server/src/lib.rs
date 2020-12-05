@@ -3,9 +3,9 @@ use core::marker::{Send, Sync};
 use futures::StreamExt;
 use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
-use std::net::SocketAddr;
+use std::{collections::BTreeMap, net::SocketAddr};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use tonic::{body::BoxBody, Status};
+use tonic::{body::BoxBody, transport::NamedService, Status};
 use tower_service::Service;
 use warp::{
     ws::{Message, WebSocket},
@@ -25,14 +25,23 @@ use webtonic_proto::Call;
 //     >,
 // >;
 
-// TODO: Use tonic::NamedService to get the path right once multiple services are allowed
+type ServiceList<T> = BTreeMap<&'static str, T>;
 
 #[derive(Debug, Clone)]
-pub struct Server<B>(B);
+pub struct Server<B>(ServiceList<B>);
 
 impl<B: Clone> Server<B> {
-    pub fn build(service: B) -> Self {
-        Self(service)
+    pub fn builder() -> Self {
+        Self(BTreeMap::new())
+    }
+
+    pub fn add_service(mut self, service: B) -> Self
+    where
+        B: NamedService,
+    {
+        // TODO: Error out if path is taken?
+        self.0.insert(<B as NamedService>::NAME, service);
+        self
     }
 
     pub async fn serve<A>(self, addr: A) -> Result<(), ()>
@@ -108,8 +117,20 @@ impl<B: Clone> Server<B> {
             let call = webtonic_proto::call_to_http_request(call).unwrap();
 
             // Call the inner service
-            let mut server_clone = server.clone();
-            let mut response = match server_clone.0.call(call).await {
+            let path: &str = call
+                .uri()
+                .path()
+                .split("/")
+                .collect::<Vec<&str>>()
+                .get(1)
+                .unwrap_or(&&"/");
+            log::debug!("request to path {:?}", path);
+
+            let mut server_clone = match server.0.get(path) {
+                Some(server) => server.clone(),
+                None => todo!(),
+            };
+            let mut response = match server_clone.call(call).await {
                 Ok(response) => response,
                 Err(_e) => {
                     panic!("Tonic services never error");
@@ -138,6 +159,7 @@ impl<B: Clone> Server<B> {
         }
     }
 }
+
 async fn return_status(tx: &UnboundedSender<Result<Message, warp::Error>>, status: Status) -> bool {
     log::warn!("error while processing msg, returning status {:?}", status);
     let mut response = status.to_http();
