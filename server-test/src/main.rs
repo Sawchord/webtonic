@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     webtonic_server::Server::builder()
         .add_service(GreeterServer::new(greeter))
         .add_service(EchoServer::new(echo))
-        .serve(([127, 0, 0, 1], 1337))
+        .serve(([127, 0, 0, 1], 8080))
         .await
         .unwrap();
 

@@ -19,12 +19,56 @@ pub(crate) fn console_log(s: &str) {
     console::log_1(&JsValue::from_str(s));
 }
 
+/// A websocket-tunneled, browser enabled tonic client.
+///
+/// This client can be used in place of tonic's
+/// [`Channel`](https://docs.rs/tonic/0.3.1/tonic/transport/struct.Channel.html).
+/// It tunnels the request through a websocket connection to the server that reconstructs them and send them
+/// to their respective handlers.
+///
+/// # Cryptography
+/// This transport implementation does not directly support encryption.
+/// It is however possible to encrypt the websocket connection itself.
+/// However, client authentication is not possible that way.
+///
+/// # Example
+/// Assuming we have the
+/// [echo example](https://github.com/hyperium/tonic/blob/master/examples/proto/helloworld/helloworld.proto)
+/// in scope, we can instanciate a connection like so:
+///
+/// ```
+/// let client = Client::connect("ws://localhost:8080").await.unwrap();
+/// let mut client = greeter_client::GreeterClient::new(client);
+///
+/// let request = tonic::Request::new(HelloRequest {
+///    name: "WebTonic".into(),
+/// });
+///
+/// let response = client.say_hello(request).await.unwrap().into_inner();
+/// assert_eq!(response.message, "Hello WebTonic!");
+/// ```
+#[derive(Debug, Clone)]
 pub struct Client<'a> {
     ws: WebSocketConnector,
     _a: PhantomData<&'a ()>,
 }
 
 impl Client<'static> {
+    /// Connects the client to the endpoint.
+    ///
+    /// # Arguments
+    /// - `uri`: The uri to connect to.
+    /// **Note**: The sceme is either `ws://` or `wss://`, depending wether encryption is used or not.
+    ///
+    /// # Returns
+    /// - A [`Client`](Client) on success.
+    /// - [`WebTonicError::InvalidUrl`](WebTonicError::InvalidUrl), if the url is malformed.
+    /// - [`WebTonicError::ConnectionError`](WebTonicError::InvalidUrl), if the endpoint can not be reached.
+    ///
+    /// # Example
+    /// ```
+    /// let client = Client::connect("ws://localhost:1337").await.unwrap();
+    /// ```
     pub async fn connect(uri: &str) -> Result<Self, WebTonicError> {
         let ws = WebSocketConnector::connect(uri).await?;
         Ok(Self {

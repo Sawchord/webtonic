@@ -12,8 +12,6 @@ wasm-bindgen = { version = "0.2.69", default-features = false, features = ["serd
 tonic = { version = "0.3.1", default-features = false, features = ["codegen", "prost"] }
 webtonic-client = { path = "../webtonic-client" }
 prost = "0.6.1"
-
-[dev-dependencies]
 wasm-bindgen-test = { version = "0.3.19", default-features = false }
 
 [build-dependencies]
