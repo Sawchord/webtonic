@@ -4,11 +4,7 @@ use futures::StreamExt;
 use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::sync::{
-    mpsc::{unbounded_channel, UnboundedSender},
-    Mutex,
-};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tonic::{body::BoxBody, Status};
 use tower_service::Service;
 use warp::{
@@ -31,23 +27,17 @@ use webtonic_proto::Call;
 
 // TODO: Use tonic::NamedService to get the path right once multiple services are allowed
 
-#[derive(Debug)]
-pub struct Server<B>(Arc<Mutex<B>>);
+#[derive(Debug, Clone)]
+pub struct Server<B>(B);
 
-// NOTE: Derived Clone adds Clone constraint on inner, even thought we don't need ot
-impl<B> Clone for Server<B> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<B> Server<B> {
+impl<B: Clone> Server<B> {
     pub fn build(service: B) -> Self {
-        Self(Arc::new(Mutex::new(service)))
+        Self(service)
     }
 
-    pub async fn serve<A: Into<SocketAddr>>(self, addr: A) -> Result<(), ()>
+    pub async fn serve<A>(self, addr: A) -> Result<(), ()>
     where
+        A: Into<SocketAddr>,
         B: Service<Request<BoxBody>, Response = Response<BoxBody>> + Clone + Sync + Send + 'static,
         <B as Service<Request<BoxBody>>>::Future: Send,
     {
@@ -118,15 +108,11 @@ impl<B> Server<B> {
             let call = webtonic_proto::call_to_http_request(call).unwrap();
 
             // Call the inner service
-            let mut response = {
-                let mut guard = server.0.lock().await;
-                log::debug!("forwarding call {:?}", call);
-
-                match guard.call(call).await {
-                    Ok(response) => response,
-                    Err(_e) => {
-                        panic!("Tonic services never error");
-                    }
+            let mut server_clone = server.clone();
+            let mut response = match server_clone.0.call(call).await {
+                Ok(response) => response,
+                Err(_e) => {
+                    panic!("Tonic services never error");
                 }
             };
             log::debug!("got response {:?}", response);
