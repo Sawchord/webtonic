@@ -1,3 +1,6 @@
 fn main() {
-    tonic_build::compile_protos("../old/proto/helloworld.proto").unwrap();
+    tonic_build::configure()
+        .build_client(false)
+        .compile(&["../proto-test/helloworld.proto"], &["../proto-test"])
+        .unwrap();
 }
