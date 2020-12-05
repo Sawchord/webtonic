@@ -1,3 +1,13 @@
+//! [request]: https://docs.rs/http/0.2.1/http/request/struct.Request.html
+//! [response]: https://docs.rs/http/0.2.1/http/response/struct.Response.html
+//! [prost-crate]: https://github.com/danburkert/prost
+//!
+//! This crate contains all the part of the `WebTonic` implementation, that is shared by both
+//! the server and the client.
+//!
+//! The crate is encoding [`Requests`][request]  into [`Calls`](Call) and [`Responses`][response]
+//! into [`Replies`](Reply), using [`Prost`][prost] messages itself.
+
 extern crate alloc;
 
 use alloc::string::String;
@@ -20,14 +30,29 @@ use prost::{Enumeration, Message};
 use std::error::Error;
 use tonic::body::BoxBody;
 
+/// The error type of `WebTonic`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WebTonicError {
+    /// The url entered is not a valid url.
     InvalidUrl,
+
+    /// The endpoint could not connect to the supplied url.
     ConnectionError,
+
+    /// Error while encoding a `Request` or `Response`.
+    ///
+    /// This is likely a bug or implementation shortcomming of `WebTonic`.
     EncodingError,
+
+    /// Failed to decode a received packet.
+    ///
+    /// Likely the other side sent a malformed packet.
     DecodingError,
+
+    /// The connection was closed unexpectedly.
     ConnectionClosed,
 }
+
 impl Error for WebTonicError {}
 impl fmt::Display for WebTonicError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -82,6 +107,8 @@ struct Response {
     headers: Vec<Header>,
 }
 
+/// A protobuf encodable internal representation of
+/// a [`Request`](https://docs.rs/http/0.2.1/http/request/struct.Request.html).
 #[derive(Clone, PartialEq, Message)]
 pub struct Call {
     #[prost(message, tag = "1")]
@@ -90,6 +117,7 @@ pub struct Call {
     body: Option<Body>,
 }
 
+/// A protobuf encodable representation of a [`Response`](https://docs.rs/http/0.2.1/http/response/struct.Response.html).
 #[derive(Clone, PartialEq, Message)]
 pub struct Reply {
     #[prost(message, tag = "1")]
@@ -98,6 +126,13 @@ pub struct Reply {
     body: Option<Body>,
 }
 
+/// Parses a [`Request`](https://docs.rs/http/0.2.1/http/request/struct.Request.html) into [`Call`](Call).
+///
+/// # Arguments
+/// - `request`: the [`Request`](https://docs.rs/http/0.2.1/http/request/struct.Request.html) to parse
+///
+/// # Returns
+/// - the protobuf encodable [`Call`](Call) object
 pub async fn http_request_to_call(request: &mut HttpRequest<BoxBody>) -> Call {
     let body = http_body_to_body(request).await;
     let request = Some(Request {
@@ -109,6 +144,14 @@ pub async fn http_request_to_call(request: &mut HttpRequest<BoxBody>) -> Call {
     Call { request, body }
 }
 
+/// Parses a [`Call`](Call) into a [`Request`](https://docs.rs/http/0.2.1/http/request/struct.Request.html).
+///
+/// # Arguments
+/// - `call`: The [`Call`](Call) to parse
+///
+/// # Returns
+/// - `Some(request)`, if parsing succeeds.
+/// - `None`, if parsing fails.
 pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
     use http::request::Builder;
 
@@ -139,6 +182,14 @@ pub fn call_to_http_request(call: Call) -> Option<HttpRequest<BoxBody>> {
         .ok()
 }
 
+/// Parse a [`Response`](https://docs.rs/http/0.2.1/http/response/struct.Response.html)
+/// into a [`Reply`](Reply).
+///
+/// # Arguments
+/// - `response`: the [`Response`](https://docs.rs/http/0.2.1/http/response/struct.Response.html) to parse
+///
+/// # Returns
+/// - the protobuf encodable [`Reply`](Reply) object
 pub async fn http_response_to_reply(response: &mut HttpResponse<BoxBody>) -> Reply {
     let body = http_body_to_body(response).await;
 
@@ -150,6 +201,15 @@ pub async fn http_response_to_reply(response: &mut HttpResponse<BoxBody>) -> Rep
     Reply { response, body }
 }
 
+/// Parse a [`Reply`](Reply) into a [`Response`](https://docs.rs/http/0.2.1/http/response/struct.Response.html).
+///
+/// # Arguments
+/// - `reply`: The [`Reply`](Reply) to parse
+///
+/// # Returns
+/// - `Some(response)`, if parsing the
+/// [`Response`](https://docs.rs/http/0.2.1/http/response/struct.Response.html) succeded
+/// - `None`, if parsing failed
 pub fn reply_to_http_response(reply: Reply) -> Option<HttpResponse<BoxBody>> {
     use http::response::Builder;
 
