@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //println!("GreeterServer listening on {}", addr);
 
-    webtonic_server::Server2::builder()
+    webtonic_server::Server::builder()
         .add_service(GreeterServer::new(greeter))
         .add_service(EchoServer::new(echo))
         .serve(([127, 0, 0, 1], 1337))

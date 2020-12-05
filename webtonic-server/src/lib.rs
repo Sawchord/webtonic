@@ -18,9 +18,9 @@ use warp::{
 use webtonic_proto::Call;
 
 #[derive(Debug, Clone)]
-pub struct Server2 {}
+pub struct Server {}
 
-impl Server2 {
+impl Server {
     pub fn builder() -> Self {
         Self {}
     }
@@ -38,7 +38,7 @@ impl Server2 {
 
 #[derive(Debug, Clone)]
 pub struct Router<A, B> {
-    server: Server2,
+    server: Server,
     root: Route<A, B>,
 }
 
