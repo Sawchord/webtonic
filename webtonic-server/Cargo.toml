@@ -1,10 +1,15 @@
 [package]
 name = "webtonic-server"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
+description = "Brwoser enables websocket tunneling for gRPC (server)"
+repository = "https://github.com/Sawchord/webtonic/"
+readme = "../README.md"
 
 [dependencies]
+webtonic-proto = { version = "0.1.0",path = "../webtonic-proto" }
 futures = { version = "0.3.6", default-features = false, features = ["alloc"] }
 tokio = { version = "0.2.23", default-features = false, features = ["sync"] }
 
@@ -17,8 +22,6 @@ bytes = { version = "0.5.3", default-features = false }
 http = { version = "0.2.1", default-features = false }
 
 log = "0.4.11"
-
-webtonic-proto = { path = "../webtonic-proto" }
 
 # TODO: Add tls support
 # TODO: Add compression?

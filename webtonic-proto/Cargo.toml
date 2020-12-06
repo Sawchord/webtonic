@@ -1,8 +1,12 @@
 [package]
 name = "webtonic-proto"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
+description = "Brwoser enables websocket tunneling for gRPC (protocol)"
+repository = "https://github.com/Sawchord/webtonic/"
+readme = "../README.md"
 
 [dependencies]
 http = { version = "0.2.1", default-features = false }
@@ -10,4 +14,3 @@ http-body = { version = "0.3.1", default-features = false }
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 bytes = { version = "0.5.3", default-features = false }
 tonic = { version = "0.3.1", default-features = false }
-#log = "0.4.11"
