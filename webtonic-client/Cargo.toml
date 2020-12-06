@@ -31,6 +31,3 @@ features = [
     "ErrorEvent",
     "WebSocket",
 ]
-
-[dev-dependencies]
-wasm-bindgen-test = { version = "0.3.19", default-features = false }
