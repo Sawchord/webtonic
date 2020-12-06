@@ -1,3 +1,8 @@
+//! Client crate of the [`WebTonic`](https://github.com/Sawchord/webtonic) project.
+//!
+//! This crate only contains the [`Client`](Client), which requires a browser runtime
+//! to function.
+
 mod websocket;
 
 use bytes::BytesMut;
@@ -33,7 +38,7 @@ pub(crate) fn console_log(s: &str) {
 ///
 /// # Example
 /// Assuming we have the
-/// [echo example](https://github.com/hyperium/tonic/blob/master/examples/proto/helloworld/helloworld.proto)
+/// [greeter example](https://github.com/hyperium/tonic/blob/master/examples/proto/helloworld/helloworld.proto)
 /// in scope, we can instanciate a connection like so:
 ///
 /// ```

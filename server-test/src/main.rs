@@ -77,8 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(GreeterServer::new(greeter))
         .add_service(EchoServer::new(echo))
         .serve(([127, 0, 0, 1], 8080))
-        .await
-        .unwrap();
+        .await;
 
     Ok(())
 }

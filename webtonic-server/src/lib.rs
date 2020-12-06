@@ -1,3 +1,10 @@
+//! Server crate of the [`WebTonic`](https://github.com/Sawchord/webtonic) project.
+//!
+//! This crate only contains the [`Server`](Server).
+//! This is necessary, in order to unpack the requests, the client has sent over the websocket connection.
+//! It is designed to mimic the
+//! [`Tonic`](https://docs.rs/tonic/0.3.1/tonic/transport/struct.Server.html) implementation.
+
 use bytes::{Bytes, BytesMut};
 use core::{
     marker::{Send, Sync},
@@ -17,14 +24,44 @@ use warp::{
 };
 use webtonic_proto::Call;
 
+/// The server endpoint of the `WebTonic` websocket bridge.
+///
+/// This is designet to be used similar to the
+/// [`Tonic`](https://github.com/hyperium/tonic/tree/master/tonic/src/transport) implementation.
+///
+/// # Example
+/// Assuming we have the
+/// [greeter example](https://github.com/hyperium/tonic/blob/master/examples/proto/helloworld/helloworld.proto)
+/// in scope, we can serve an endpoint like so:
+/// ```
+/// let greeter = MyGreeter::default();
+///
+/// webtonic_server::Server::builder()
+///     .add_service(GreeterServer::new(greeter))
+///     .serve(([127, 0, 0, 1], 8080))
+///     .await;
+/// ```
 #[derive(Debug, Clone)]
 pub struct Server {}
 
 impl Server {
+    /// Create a new [`Server`](Server) builder.
+    ///
+    /// # Returns
+    /// A [`Server`](Server) in default configuration.
     pub fn builder() -> Self {
         Self {}
     }
 
+    /// [service]: https://docs.rs/tower-service/0.3.0/tower_service/trait.Service.html
+    /// Add a [`Service`][service] to the route (see [example](Server)).
+    ///
+    /// # Arguments
+    /// - `service`: the [`Service`][service] to add
+    ///
+    /// # Returns
+    /// - A [`Router`](Router), which included the old routes and the new service.
+    /// This also means you need to finish server configuration before calling this function.
     pub fn add_service<A>(self, service: A) -> Router<A, Unimplemented>
     where
         A: Service<Request<BoxBody>, Response = Response<BoxBody>> + Sync + Send + 'static,
@@ -36,6 +73,7 @@ impl Server {
     }
 }
 
+/// A [`Router`](Router) is used to compile [`Routes`](Route), by [adding services](Router::add_service).
 #[derive(Debug, Clone)]
 pub struct Router<A, B> {
     server: Server,
@@ -43,16 +81,34 @@ pub struct Router<A, B> {
 }
 
 impl<A, B> Router<A, B> {
-    pub fn add_service<C>(self, service: C) -> Router<C, Route<A, B>> {
+    /// [service]: https://docs.rs/tower-service/0.3.0/tower_service/trait.Service.html
+    /// Add a [`Service`][service] to the route (see [example](Server)).
+    ///
+    /// # Arguments
+    /// - `service`: the [`Service`][service] to add
+    ///
+    /// # Returns
+    /// - A new [`Router`](Router), which included the old routes and the new service.
+    pub fn add_service<C>(self, service: C) -> Router<C, Route<A, B>>
+    where
+        C: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = Never>,
+    {
         Router {
             server: self.server,
             root: Route(service, self.root),
         }
     }
 
-    pub async fn serve<ADDR>(self, addr: ADDR) -> Result<(), ()>
+    /// Start serving the endpoint on the provided addres (see [example](Server)).
+    ///
+    /// # Arguments
+    /// - `addr`: The address on which to serve the endpoint.
+    ///
+    /// # Returns
+    /// - It doens't.
+    pub async fn serve<U>(self, addr: U)
     where
-        ADDR: Into<SocketAddr>,
+        U: Into<SocketAddr>,
         A: Service<Request<BoxBody>, Response = Response<BoxBody>, Error = Never>
             + NamedService
             + Clone
@@ -76,11 +132,13 @@ impl<A, B> Router<A, B> {
         ))
         .run(addr)
         .await;
-
-        Ok(())
     }
 }
 
+/// Representation of a gRPC route.
+///
+/// You will likely not interact with this directly, but rather through the [`Server`](Server)
+/// and [`Router`](Router) structs.
 #[derive(Debug, Clone)]
 pub struct Route<A, B>(A, B);
 
@@ -108,6 +166,9 @@ where
     }
 }
 
+/// The unimplemented service sends `unimplemented` errors on any request.
+///
+/// This is used as the fallthrough route in gRPC.
 #[derive(Default, Clone, Debug)]
 pub struct Unimplemented;
 
