@@ -12,7 +12,7 @@ readme = "../README.md"
 webtonic-proto = { version = "0.1.0", path = "../webtonic-proto" }
 tonic = { version = "0.3.1", default-features = false }
 prost = { version = "0.6.1", default-features = false }
-tokio = { version = "0.2.23", default-features = false, features = ["sync"] }
+tokio = { version = "1.0.0", default-features = false, features = ["sync"] }
 
 http = { version = "0.2.1", default-features = false }
 bytes = { version = "0.5.3", default-features = false }
