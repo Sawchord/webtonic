@@ -16,7 +16,7 @@ tokio = { version = "0.2.23", default-features = false, features = ["sync"] }
 warp = { version = "0.2.5", default-features = false, features = ["websocket"] }
 tower-service = { version = "0.3.0", default-features = false }
 tonic = { version = "0.3.1", default-features = false, features = ["transport", "codegen"] }
-prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
+prost = { version = "0.7.0", default-features = false, features = ["prost-derive"] }
 
 bytes = { version = "0.5.3", default-features = false }
 http = { version = "0.2.1", default-features = false }
