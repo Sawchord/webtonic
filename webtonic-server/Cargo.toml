@@ -11,7 +11,7 @@ readme = "../README.md"
 [dependencies]
 webtonic-proto = { version = "0.1.0",path = "../webtonic-proto" }
 futures = { version = "0.3.6", default-features = false, features = ["alloc"] }
-tokio = { version = "0.2.23", default-features = false, features = ["sync"] }
+tokio = { version = "1.0.1", default-features = false, features = ["sync"] }
 
 warp = { version = "0.2.5", default-features = false, features = ["websocket"] }
 tower-service = { version = "0.3.0", default-features = false }
