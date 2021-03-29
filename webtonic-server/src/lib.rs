@@ -16,6 +16,7 @@ use http::{request::Request, response::Response};
 use prost::Message as ProstMessage;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{body::BoxBody, codegen::Never, transport::NamedService, Status};
 use tower_service::Service;
 use warp::{
@@ -207,7 +208,7 @@ where
     let (ws_tx, mut ws_rx) = ws.split();
     let (tx, rx) = unbounded_channel();
     // Create outbound task
-    tokio::task::spawn(rx.forward(ws_tx));
+    tokio::task::spawn(UnboundedReceiverStream::new(rx).forward(ws_tx));
 
     while let Some(msg) = ws_rx.next().await {
         log::debug!("received message {:?}", msg);
