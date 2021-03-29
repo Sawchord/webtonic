@@ -9,8 +9,8 @@ repository = "https://github.com/Sawchord/webtonic/"
 readme = "../README.md"
 
 [dependencies]
-http = { version = "0.2.1", default-features = false }
-http-body = { version = "0.3.1", default-features = false }
-prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
-bytes = { version = "0.5.3", default-features = false }
-tonic = { version = "0.3.1", default-features = false }
+http = { version = "0.2.3", default-features = false }
+http-body = { version = "0.4.1", default-features = false }
+prost = { version = "0.7.0", default-features = false, features = ["prost-derive"] }
+bytes = { version = "1.0.1", default-features = false }
+tonic = { version = "0.4.1", default-features = false }

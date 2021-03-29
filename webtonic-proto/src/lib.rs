@@ -261,7 +261,10 @@ fn http_method_to_method(method: &HttpMethod) -> Method {
     }
 }
 
-async fn http_body_to_body<B: HttpBody + Unpin>(body: &mut B) -> Option<Body> {
+async fn http_body_to_body<B>(body: &mut B) -> Option<Body>
+where
+    B: HttpBody + Unpin,
+{
     let trailers = match body.trailers().await {
         Ok(Some(trailers)) => Some(http_headers_to_headers(&trailers)),
         Ok(None) => None,
@@ -269,7 +272,7 @@ async fn http_body_to_body<B: HttpBody + Unpin>(body: &mut B) -> Option<Body> {
     };
 
     let body = match body.data().await {
-        Some(Ok(mut body)) => Some(body.to_bytes().to_vec()),
+        Some(Ok(mut body)) => Some(body.copy_to_bytes(body.remaining()).to_vec()),
         _ => None,
     };
 
