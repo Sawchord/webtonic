@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
-description = "Brwoser enables websocket tunneling for gRPC (server)"
+description = "Browser enabled websocket tunneling for gRPC (server)"
 repository = "https://github.com/Sawchord/webtonic/"
 readme = "../README.md"
 
