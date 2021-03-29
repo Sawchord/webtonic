@@ -8,11 +8,11 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-wasm-bindgen = { version = "0.2.69", default-features = false, features = ["serde-serialize"] }
-tonic = { version = "0.3.1", default-features = false, features = ["codegen", "prost"] }
+wasm-bindgen = { version = "0.2.73", default-features = false, features = ["serde-serialize"] }
+tonic = { version = "0.4.1", default-features = false, features = ["codegen", "prost"] }
 webtonic-client = { path = "../webtonic-client" }
-prost = "0.6.1"
-wasm-bindgen-test = { version = "0.3.19", default-features = false }
+prost = "0.7.0"
+wasm-bindgen-test = { version = "0.3.23", default-features = false }
 
 [build-dependencies]
-tonic-build = { version = "0.3.1", default-features = false, features = ["prost"] }
+tonic-build = { version = "0.4.1", default-features = false, features = ["prost"] }

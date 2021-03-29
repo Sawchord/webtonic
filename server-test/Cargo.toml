@@ -5,13 +5,13 @@ authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "0.2.23", features = ["full"] }
-tonic = { version = "0.3.1" }
-futures = { version = "0.3.8" }
-prost = "0.6.1"
+tokio = { version = "1.4.0", features = ["full"] }
+tonic = { version = "0.4.1" }
+futures = { version = "0.3.13" }
+prost = "0.7.0"
 pretty_env_logger = "0.4.0"
 
 webtonic-server = { path = "../webtonic-server" }
 
 [build-dependencies]
-tonic-build = { version = "0.3.1", features = ["prost"] }
+tonic-build = { version = "0.4.1", features = ["prost"] }
