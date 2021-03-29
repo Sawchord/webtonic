@@ -1,6 +1,6 @@
 [package]
 name = "webtonic-server"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -9,7 +9,7 @@ repository = "https://github.com/Sawchord/webtonic/"
 readme = "../README.md"
 
 [dependencies]
-webtonic-proto = { version = "0.1.0",path = "../webtonic-proto" }
+webtonic-proto = { version = "0.1.1",path = "../webtonic-proto" }
 futures = { version = "0.3.6", default-features = false, features = ["alloc"] }
 tokio = { version = "1.4.0", default-features = false, features = ["sync"] }
 tokio-stream = { version = "0.1.5", default-features = false }

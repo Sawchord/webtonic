@@ -3,6 +3,7 @@ name = "client-test"
 version = "0.0.0"
 authors = ["Leon Tan <leon.arian.tan@gmail.com>"]
 edition = "2018"
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
