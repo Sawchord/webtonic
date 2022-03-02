@@ -10,19 +10,19 @@ readme = "../README.md"
 
 [dependencies]
 webtonic-proto = { version = "0.1.1",path = "../webtonic-proto" }
-futures = { version = "0.3.6", default-features = false, features = ["alloc"] }
-tokio = { version = "1.4.0", default-features = false, features = ["sync"] }
-tokio-stream = { version = "0.1.5", default-features = false }
+futures = { version = "0.3.21", default-features = false, features = ["alloc"] }
+tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
+tokio-stream = { version = "0.1.8", default-features = false }
 
-warp = { version = "0.3.1", default-features = false, features = ["websocket"] }
+warp = { version = "0.3.2", default-features = false, features = ["websocket"] }
 tower-service = { version = "0.3.1", default-features = false }
-tonic = { version = "0.4.1", default-features = false, features = ["transport", "codegen"] }
-prost = { version = "0.7.0", default-features = false, features = ["prost-derive"] }
+tonic = { version = "0.6.2", default-features = false, features = ["transport", "codegen"] }
+prost = { version = "0.9.0", default-features = false, features = ["prost-derive"] }
 
-bytes = { version = "1.0.1", default-features = false }
-http = { version = "0.2.1", default-features = false }
+bytes = { version = "1.1.0", default-features = false }
+http = { version = "0.2.6", default-features = false }
 
-log = "0.4.11"
+log = "0.4.14"
 
 # TODO: Add tls support
 # TODO: Add compression?

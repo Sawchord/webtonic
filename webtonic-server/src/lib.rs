@@ -17,7 +17,12 @@ use prost::Message as ProstMessage;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tonic::{body::BoxBody, codegen::Never, transport::NamedService, Status};
+use tonic::{
+    body::{empty_body, BoxBody},
+    codegen::Never,
+    transport::NamedService,
+    Status,
+};
 use tower_service::Service;
 use warp::{
     ws::{Message, WebSocket},
@@ -188,7 +193,7 @@ impl Service<(String, Request<BoxBody>)> for Unimplemented {
                 .status(200)
                 .header("grpc-status", "12")
                 .header("content-type", "application/grpc")
-                .body(BoxBody::empty())
+                .body(empty_body())
                 .unwrap(),
         )
     }

@@ -6,13 +6,13 @@ edition = "2018"
 publish = false
 
 [dependencies]
-tokio = { version = "1.4.0", features = ["full"] }
-tonic = { version = "0.4.1" }
-futures = { version = "0.3.13" }
-prost = "0.7.0"
+tokio = { version = "1.17.0", features = ["full"] }
+tonic = "0.6.2"
+futures = "0.3.21"
+prost = "0.9.0"
 pretty_env_logger = "0.4.0"
 
 webtonic-server = { path = "../webtonic-server" }
 
 [build-dependencies]
-tonic-build = { version = "0.4.1", features = ["prost"] }
+tonic-build = { version = "0.6.2", features = ["prost"] }
