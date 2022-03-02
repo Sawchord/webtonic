@@ -10,20 +10,20 @@ readme = "../README.md"
 
 [dependencies]
 webtonic-proto = { version = "0.1.1", path = "../webtonic-proto" }
-tonic = { version = "0.4.1", default-features = false }
-prost = { version = "0.7.0", default-features = false }
-tokio = { version = "1.4.0", default-features = false, features = ["sync"] }
+tonic = { version = "0.6.2", default-features = false }
+prost = { version = "0.9.0", default-features = false }
+tokio = { version = "1.17.0", default-features = false, features = ["sync"] }
 
-http = { version = "0.2.3", default-features = false }
-bytes = { version = "1.0.1", default-features = false }
+http = { version = "0.2.6", default-features = false }
+bytes = { version = "1.1.0", default-features = false }
 
-wasm-bindgen = { version = "0.2.73", default-features = false, features = ["serde-serialize"] }
-wasm-bindgen-futures = { version = "0.4.23", default-features = false }
-futures = { version = "0.3.13", default-features = false, features = ["alloc"] }
-js-sys = { version = "0.3.50", default-features = false }
+wasm-bindgen = { version = "0.2.79", default-features = false, features = ["serde-serialize"] }
+wasm-bindgen-futures = { version = "0.4.29", default-features = false }
+futures = { version = "0.3.21", default-features = false, features = ["alloc"] }
+js-sys = { version = "0.3.56", default-features = false }
 
 [dependencies.web-sys]
-version = "0.3.50"
+version = "0.3.56"
 default-features = false
 features = [
     "BinaryType",
